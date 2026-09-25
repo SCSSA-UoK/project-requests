@@ -87,16 +87,14 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 - `docs:` for documentation changes.
 
 ### Commit Sign-Off Requirement
-All commits must include a Developer Certificate of Origin (DCO) sign-off (`git commit -s`):
-```text
 Signed-off-by: <Git User Name> <user.email@domain.com>
 
 Note: Do not hardcode fictitious user identities; determine the Git name and email dynamically from the active user's environment or git config.
-   ## 6. Pre-Commit Checklist for Agents
-   
-   Before completing any code modifications:
-   
-   [ ] Ensure Python scripts pass syntax checks: python3 -m py_compile scripts/*.py.
-   [ ] Verify regex changes correctly match the university course naming rules.
-   [ ] Confirm no secrets, tokens, or private credentials are included in tracked files.
-   [ ] Ensure commits are signed off and follow conventional commit syntax.
+## 6. Pre-Commit Checklist for Agents
+
+Before completing any code modifications:
+
+[ ] Ensure Python scripts pass syntax checks: python3 -m py_compile scripts/*.py.
+[ ] Verify regex changes correctly match the university course naming rules.
+[ ] Confirm no secrets, tokens, or private credentials are included in tracked files.
+[ ] Ensure commits are signed off and follow conventional commit syntax.
