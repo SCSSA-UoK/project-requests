@@ -76,7 +76,7 @@ $$\text{MODULE}-\text{YY-YY}-\text{G}\text{NN}-\text{SHORT-TITLE}$$
 
 ## 📋 Project Registry
 
-Every approved request is automatically logged to `projects.csv` in the private documentation repository (`SCSSA-UoK/scssa-project-records`). This file is the single source of truth for all provisioned groups.
+Every approved request is automatically logged to a module/batch-specific CSV in the private documentation repository (`SCSSA-UoK/scssa-project-records`). The naming pattern is `<MODULE>-<BATCH>-Projects.csv`; for example, FSSD 2024/25 uses `FSSD-24-25-Projects.csv`. This file is the single source of truth for all provisioned groups.
 
 | Column | Description |
 | :--- | :--- |
@@ -92,10 +92,10 @@ Every approved request is automatically logged to `projects.csv` in the private 
 
 ### 📥 Downloading the Excel Report
 
-After every approval, a formatted Excel (`.xlsx`) report is generated and committed directly to the private documentation repository.
+After every approval, a formatted Excel (`.xlsx`) report is generated and committed directly to the private documentation repository using the same module/batch-specific basename.
 
 1. Go to the `SCSSA-UoK/scssa-project-records` repository (requires Admin access).
-2. Download the `projects.xlsx` file directly from the repository.
+2. Download the relevant `<MODULE>-<BATCH>-Projects.xlsx` file directly from the repository (for example, `FSSD-24-25-Projects.xlsx`).
 
 The Excel file includes navy-styled headers, alternating row colours, auto-filter dropdowns, a frozen header row, and clickable repository hyperlinks.
 
@@ -122,7 +122,7 @@ Enter it exactly as shown on your student ID (e.g. `EC/2022/001`). The bot does 
 Yes — groups of **2, 3, or 4** members are all supported. Simply leave the unused Member rows blank.
 
 **7. How do I get the Excel project report?**  
-It is automatically saved in the private `scssa-project-records` repository. Administrators can download it from there at any time.
+It is automatically saved using the `<MODULE>-<BATCH>-Projects.xlsx` naming convention in the private `scssa-project-records` repository. Administrators can download the relevant report from there at any time.
 
 ---
 
