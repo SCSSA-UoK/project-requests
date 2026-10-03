@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SCSSA Excel Report Generator
-Reads projects.csv from the private docs repo (DOCS_REPO env var),
+Reads the module/batch-specific CSV from the private docs repo (DOCS_REPO env var),
 builds a formatted .xlsx file, and commits it back to the same docs repo.
 This means the admin can always download the latest Excel directly from GitHub.
 """
@@ -24,8 +24,8 @@ except ImportError:
     print("Error: openpyxl is not installed. Run: pip install openpyxl", file=sys.stderr)
     sys.exit(1)
 
-CSV_PATH  = "projects.csv"
-XLSX_PATH = "projects.xlsx"
+CSV_PATH = "FSSD-24-25-Projects.csv"
+XLSX_PATH = "FSSD-24-25-Projects.xlsx"
 
 # Colour palette
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
@@ -164,7 +164,7 @@ def commit_xlsx(docs_repo: str, token: str, wb: openpyxl.Workbook):
     encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     commit_data = {
-        "message": f"chore: regenerate projects.xlsx [skip ci]",
+        "message": f"chore: regenerate {XLSX_PATH} [skip ci]",
         "content": encoded,
         "committer": {
             "name": "SCSSA Bot",
@@ -186,6 +186,11 @@ def commit_xlsx(docs_repo: str, token: str, wb: openpyxl.Workbook):
 def main():
     token     = os.environ.get("APP_TOKEN") or os.environ.get("ISSUE_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
     docs_repo = os.environ.get("DOCS_REPO") or os.environ.get("REPO_FULL_NAME", "")
+    record_basename = os.environ.get("PROJECT_RECORD_BASENAME")
+    if record_basename:
+        global CSV_PATH, XLSX_PATH
+        CSV_PATH = f"{record_basename}.csv"
+        XLSX_PATH = f"{record_basename}.xlsx"
 
     if not token or not docs_repo:
         print("Error: APP_TOKEN and DOCS_REPO must be set.", file=sys.stderr)
