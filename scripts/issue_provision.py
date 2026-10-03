@@ -5,7 +5,7 @@ Provisions a new clean course repository when an administrator applies the `appr
 Auto-assigns the next sequential group number PER BATCH for the module.
 Repo name format: FSSD-B{YY}-G{NN}-{SHORT-TITLE}
 
-After provisioning, appends a record to projects.csv in the private docs repo
+After provisioning, appends a record to a module/batch-specific CSV in the private docs repo
 (DOCS_REPO env var, e.g. SCSSA-UoK/scssa-project-records).
 """
 
@@ -29,7 +29,6 @@ ACADEMIC_YEAR_MAP = {
     "25/26": "25-26",
 }
 
-CSV_PATH = "projects.csv"
 
 CSV_HEADERS = [
     "Group No",
@@ -177,12 +176,12 @@ def ensure_docs_repo(docs_repo: str, token: str):
         print(f"Warning: Could not create docs repo ({create_status}): {create_resp}", file=sys.stderr)
 
 
-def update_csv(docs_repo: str, token: str, row: dict):
+def update_csv(docs_repo: str, token: str, row: dict, csv_path: str):
     """
     Fetches the existing CSV from the private docs repo, appends the new row,
     and commits it back. Creates the file with headers if it does not yet exist.
     """
-    endpoint = f"/repos/{docs_repo}/contents/{CSV_PATH}"
+    endpoint = f"/repos/{docs_repo}/contents/{csv_path}"
     status, resp = api_request("GET", endpoint, token)
 
     if status == 200:
@@ -211,7 +210,7 @@ def update_csv(docs_repo: str, token: str, row: dict):
     encoded = base64.b64encode(new_content.encode("utf-8")).decode("utf-8")
 
     commit_data = {
-        "message": f"chore: add group {row['Group No']} to projects.csv [skip ci]",
+        "message": f"chore: add group {row['Group No']} to {csv_path} [skip ci]",
         "content": encoded,
         "committer": {
             "name": "SCSSA Bot",
@@ -223,7 +222,7 @@ def update_csv(docs_repo: str, token: str, row: dict):
 
     put_status, put_resp = api_request("PUT", endpoint, token, commit_data)
     if put_status in (200, 201):
-        print(f"CSV updated successfully in '{docs_repo}/{CSV_PATH}'")
+        print(f"CSV updated successfully in '{docs_repo}/{csv_path}'")
     else:
         print(f"Warning: Failed to update CSV ({put_status}): {put_resp}", file=sys.stderr)
 
@@ -293,6 +292,8 @@ def main():
 
     print(f"Calculating next group number for '{module_prefix}-{academic_year_code}'...")
     group_number = get_next_group_number(org_name, module_prefix, academic_year_code, app_token)
+    record_basename = f"{module_prefix}-{academic_year_code}-Projects"
+    csv_path = f"{record_basename}.csv"
     repo_name    = f"{module_prefix}-{academic_year_code}-G{group_number:02d}-{short_title}"
 
     print(f"Provisioning repository '{org_name}/{repo_name}' for issue #{issue_number}")
