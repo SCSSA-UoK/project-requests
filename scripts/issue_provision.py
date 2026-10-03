@@ -390,7 +390,12 @@ def main():
         "Member4 GitHub":     padded[3].get("github", ""),
     }
     print(f"Updating CSV in docs repo '{docs_repo}'...")
-    update_csv(docs_repo, app_token, csv_row)
+    update_csv(docs_repo, app_token, csv_row, csv_path)
+
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a", encoding="utf-8") as output:
+            output.write(f"record_basename={record_basename}\n")
 
     print(f"\u2728 Provisioning complete: '{org_name}/{repo_name}' (Academic Year {raw_academic_year}, Group {group_number:02d})")
 
