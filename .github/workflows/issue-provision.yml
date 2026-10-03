@@ -35,6 +35,7 @@ jobs:
           python-version: '3.11'
 
       - name: Provision Repository
+        id: provision
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,5 +56,6 @@ jobs:
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           DOCS_REPO: ${{ vars.DOCS_REPO }}
+          PROJECT_RECORD_BASENAME: ${{ steps.provision.outputs.record_basename }}
         run: |
           python3 scripts/generate_xlsx.py
