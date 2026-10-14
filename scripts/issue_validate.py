@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 
 MODULE_MAP = {
-    "COSC 32133 / BECS 32263 \u2013 Full-Stack Software Development (FSSD)": "FSSD",
+    "COSC 32133 / BECS 32263 – Full-Stack Software Development (FSSD)": "FSSD",
 }
 
 ACADEMIC_YEAR_MAP = {
@@ -24,6 +24,7 @@ ACADEMIC_YEAR_MAP = {
 SHORT_TITLE_REGEX = re.compile(r"^[A-Za-z0-9]+([- ][A-Za-z0-9]+){0,3}$")
 GITHUB_USER_REGEX = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$")
 MAX_MEMBERS = 4
+MIN_MEMBERS = 2
 
 
 def api_request(method, endpoint, token="", data=None):
@@ -83,20 +84,52 @@ def parse_members(form: dict) -> list:
     """
     members = []
     for i in range(1, 5):
-        student_no = form.get(f"Member {i} \u00b7 Student No", "").strip()
-        name       = form.get(f"Member {i} \u00b7 Full Name", "").strip()
-        github     = form.get(f"Member {i} \u00b7 GitHub Username", "").strip().lstrip("@")
+        student_no = form.get(f"Member {i} · Student No", "").strip()
+        name = form.get(f"Member {i} · Full Name", "").strip()
+        github = form.get(f"Member {i} · GitHub Username", "").strip().lstrip("@")
 
         if is_blank(student_no) and is_blank(name) and is_blank(github):
             continue
 
         members.append({
-            "index":      i,
+            "index": i,
             "student_no": "" if is_blank(student_no) else student_no,
-            "name":       "" if is_blank(name) else name,
-            "github":     "" if is_blank(github) else github,
+            "name": "" if is_blank(name) else name,
+            "github": "" if is_blank(github) else github,
         })
     return members
+
+
+def validate_member_rows(form: dict, selected_team_size: int | None) -> list:
+    """
+    Validate that each selected member slot is complete and all unused slots are blank.
+    Member 1 is always required, even when the team-size selection is invalid.
+    """
+    errors = []
+    required_count = selected_team_size if selected_team_size in {2, 3, 4} else 1
+
+    for i in range(1, MAX_MEMBERS + 1):
+        student_no = form.get(f"Member {i} · Student No", "").strip()
+        name = form.get(f"Member {i} · Full Name", "").strip()
+        github = form.get(f"Member {i} · GitHub Username", "").strip().lstrip("@")
+        values = {
+            "Student No": student_no,
+            "Full Name": name,
+            "GitHub Username": github,
+        }
+        populated = any(not is_blank(value) for value in values.values())
+
+        if i <= required_count:
+            for field_name, value in values.items():
+                if is_blank(value):
+                    errors.append(f"Member {i}: {field_name} is required.")
+        elif selected_team_size in {2, 3, 4} and populated:
+            errors.append(
+                f"Member {i}: leave this row blank because the selected team size "
+                f"is {selected_team_size}."
+            )
+
+    return errors
 
 
 def update_issue_labels(repo_full_name, issue_number, token, add_labels, remove_labels):
@@ -107,7 +140,7 @@ def update_issue_labels(repo_full_name, issue_number, token, add_labels, remove_
 
 
 def upsert_comment(repo_full_name, issue_number, token, comment_text):
-    bot_marker   = "<!-- scssa-issue-validator-bot -->"
+    bot_marker = "<!-- scssa-issue-validator-bot -->"
     full_comment = f"{bot_marker}\n{comment_text}"
     status, comments = api_request("GET", f"/repos/{repo_full_name}/issues/{issue_number}/comments", token)
     if status == 200 and isinstance(comments, list):
@@ -119,11 +152,11 @@ def upsert_comment(repo_full_name, issue_number, token, comment_text):
 
 
 def main():
-    token          = os.environ.get("GITHUB_TOKEN", "")
+    token = os.environ.get("GITHUB_TOKEN", "")
     repo_full_name = os.environ.get("REPO_FULL_NAME", "")
-    issue_number   = os.environ.get("ISSUE_NUMBER", "")
-    issue_author   = os.environ.get("ISSUE_AUTHOR", "")
-    issue_body     = os.environ.get("ISSUE_BODY", "")
+    issue_number = os.environ.get("ISSUE_NUMBER", "")
+    issue_author = os.environ.get("ISSUE_AUTHOR", "")
+    issue_body = os.environ.get("ISSUE_BODY", "")
 
     if not issue_body or not issue_number:
         print("Error: Missing issue body or number.", file=sys.stderr)
@@ -131,10 +164,11 @@ def main():
 
     form = parse_issue_form(issue_body)
 
-    raw_module        = form.get("Module", "").strip()
+    raw_module = form.get("Module", "").strip()
     raw_academic_year = form.get("Academic Year", "").strip()
-    raw_short_title   = form.get("Project Short Title", "").strip()
-    description       = form.get("Project Description", "").strip()
+    raw_short_title = form.get("Project Short Title", "").strip()
+    description = form.get("Project Description", "").strip()
+    raw_team_size = form.get("Number of Team Members", "").strip()
 
     errors = []
     checks = {}
@@ -144,14 +178,14 @@ def main():
     if not module_prefix:
         errors.append(f"Unrecognised module: `{raw_module}`. Please select a valid module from the dropdown.")
     else:
-        checks["Module"] = f"\u2705 `{raw_module}`"
+        checks["Module"] = f"✅ `{raw_module}`"
 
     # 2. Academic Year
     academic_year_code = ACADEMIC_YEAR_MAP.get(raw_academic_year)
     if not academic_year_code:
         errors.append(f"Unrecognised academic year: `{raw_academic_year}`. Please select `24/25` or `25/26`.")
     else:
-        checks["Academic Year"] = f"\u2705 `{raw_academic_year}` \u2192 `{academic_year_code}`"
+        checks["Academic Year"] = f"✅ `{raw_academic_year}` → `{academic_year_code}`"
 
     # 3. Short title
     if is_blank(raw_short_title):
@@ -159,53 +193,54 @@ def main():
     elif not SHORT_TITLE_REGEX.match(raw_short_title):
         errors.append(
             f"Invalid short title `{raw_short_title}`. "
-            f"Use 1\u20134 words with letters/digits separated by spaces or hyphens."
+            "Use 1–4 words with letters/digits separated by spaces or hyphens."
         )
     else:
         normalized = normalize_short_title(raw_short_title)
-        checks["Short Title"] = f"\u2705 Will be stored as `{normalized}`"
+        checks["Short Title"] = f"✅ Will be stored as `{normalized}`"
 
     # 4. Description
     if is_blank(description):
         errors.append("Project Description is required.")
     else:
-        checks["Description"] = "\u2705 Provided"
+        checks["Description"] = "✅ Provided"
 
-    # 5. Members
-    members = parse_members(form)
-
-    if not members:
-        errors.append("At least Member 1 (Project Lead) must be filled in with Student No, Full Name, and GitHub Username.")
-    elif len(members) > MAX_MEMBERS:
-        errors.append(f"Too many team members ({len(members)}). Maximum is {MAX_MEMBERS}.")
+    # 5. Team size and members
+    selected_team_size = None
+    if raw_team_size not in {"2", "3", "4"}:
+        errors.append("Number of Team Members must be selected as 2, 3, or 4.")
     else:
-        for m in members:
-            i = m["index"]
-            if not m["student_no"]:
-                errors.append(f"Member {i}: Student No is required.")
-            if not m["name"]:
-                errors.append(f"Member {i}: Full Name is required.")
-            if not m["github"]:
-                errors.append(f"Member {i}: GitHub Username is required.")
-            elif not GITHUB_USER_REGEX.match(m["github"]):
-                errors.append(f"Member {i}: Invalid GitHub username `@{m['github']}`.")
-            else:
-                status, _ = api_request("GET", f"/users/{m['github']}", token)
-                if status == 404:
-                    errors.append(f"Member {i}: GitHub user `@{m['github']}` does not exist.")
+        selected_team_size = int(raw_team_size)
+        checks["Selected Team Size"] = f"✅ {selected_team_size} member(s)"
 
-        if not errors:
-            checks["Team Members"] = f"\u2705 {len(members)} member(s) verified"
+    members = parse_members(form)
+    errors.extend(validate_member_rows(form, selected_team_size))
+
+    # Validate usernames for every populated row. Structural completeness is
+    # checked above, so this loop only performs username format/existence checks.
+    for member in members:
+        github = member["github"]
+        if github and not GITHUB_USER_REGEX.match(github):
+            errors.append(f"Member {member['index']}: Invalid GitHub username `@{github}`.")
+        elif github:
+            status, _ = api_request("GET", f"/users/{github}", token)
+            if status == 404:
+                errors.append(
+                    f"Member {member['index']}: GitHub user `@{github}` does not exist."
+                )
+
+    if not errors:
+        checks["Team Members"] = f"✅ {len(members)} member(s) verified"
 
     # 6. Expected repo name preview
     if module_prefix and academic_year_code and not is_blank(raw_short_title) and SHORT_TITLE_REGEX.match(raw_short_title):
         normalized = normalize_short_title(raw_short_title)
-        checks["Expected Repo Name"] = f"\U0001f522 `{module_prefix}-{academic_year_code}-G??-{normalized}` *(group number assigned on approval)*"
+        checks["Expected Repo Name"] = f"🔢 `{module_prefix}-{academic_year_code}-G??-{normalized}` *(group number assigned on approval)*"
 
     if errors:
         comment = (
-            "### \U0001f916 SCSSA Request Bot\n\n"
-            "**Status:** \u274c **Action Required**\n\n"
+            "### 🤖 SCSSA Request Bot\n\n"
+            "**Status:** ❌ **Action Required**\n\n"
             "Please edit your issue and correct the following:\n\n"
             + "\n".join(f"- {err}" for err in errors)
             + "\n\n---\n*Once you edit the issue, the bot will automatically re-check your inputs.*"
@@ -216,31 +251,30 @@ def main():
         sys.exit(1)
     else:
         checks_table = "\n".join(f"| {k} | {v} |" for k, v in checks.items())
-        lead = members[0]
 
         # Build avatar grid table for members
         member_rows = ""
         for m in members:
             avatar = f"![](https://github.com/{m['github']}.png?size=40)"
-            role   = "\U0001f451 Admin (Lead)" if m["index"] == 1 else "Collaborator"
+            role = "👑 Admin (Lead)" if m["index"] == 1 else "Collaborator"
             member_rows += (
                 f"| {avatar} | `{m['student_no']}` | **{m['name']}** "
                 f"| [@{m['github']}](https://github.com/{m['github']}) | {role} |\n"
             )
 
         comment = (
-            "### \U0001f916 SCSSA Request Bot\n\n"
-            "**Status:** \u2705 **Validation Passed**\n\n"
+            "### 🤖 SCSSA Request Bot\n\n"
+            "**Status:** ✅ **Validation Passed**\n\n"
             "Your project request has been verified and is ready for administrator approval.\n\n"
             "| Check | Status |\n| :--- | :--- |\n"
             f"{checks_table}\n\n"
             "---\n"
-            "**\U0001f465 Team Members**\n\n"
+            "**👥 Team Members**\n\n"
             "| &nbsp; | Student No | Name | GitHub | Role |\n"
             "| :---: | :--- | :--- | :--- | :--- |\n"
             f"{member_rows}\n"
             "---\n"
-            "\U0001f469\u200d\U0001f3eb **Administrator Action:** Add the label **`approved`** or comment **`/approved`** to provision this repository immediately."
+            "👩‍🏫 **Administrator Action:** Add the label **`approved`** or comment **`/approved`** to provision this repository immediately."
         )
         update_issue_labels(repo_full_name, issue_number, token, ["pending-approval"], ["needs-revision"])
         upsert_comment(repo_full_name, issue_number, token, comment)

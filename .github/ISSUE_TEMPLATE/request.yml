@@ -54,7 +54,19 @@ body:
       value: |
         ---
         ### 👥 Team Members
-        Groups can have **2–4 members**. **Member 1 is the Project Lead** and will be assigned as repository Admin. Leave unused member sections blank.
+        Groups can have **2–4 members**. Select your team size below, then complete the matching member rows. GitHub issue forms cannot dynamically hide or show fields, so all four rows remain available; leave unused rows blank. **Member 1 is the Project Lead** and will be assigned as repository Admin.
+
+  - type: dropdown
+    id: team_size
+    attributes:
+      label: Number of Team Members
+      description: Select the total number of students in your project group.
+      options:
+        - "2"
+        - "3"
+        - "4"
+    validations:
+      required: true
 
   - type: markdown
     attributes:
