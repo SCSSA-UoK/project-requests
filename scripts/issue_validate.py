@@ -100,6 +100,38 @@ def parse_members(form: dict) -> list:
     return members
 
 
+def validate_member_rows(form: dict, selected_team_size: int | None) -> list:
+    """
+    Validate that each selected member slot is complete and all unused slots are blank.
+    Member 1 is always required, even when the team-size selection is invalid.
+    """
+    errors = []
+    required_count = selected_team_size if selected_team_size in {2, 3, 4} else 1
+
+    for i in range(1, MAX_MEMBERS + 1):
+        student_no = form.get(f"Member {i} · Student No", "").strip()
+        name = form.get(f"Member {i} · Full Name", "").strip()
+        github = form.get(f"Member {i} · GitHub Username", "").strip().lstrip("@")
+        values = {
+            "Student No": student_no,
+            "Full Name": name,
+            "GitHub Username": github,
+        }
+        populated = any(not is_blank(value) for value in values.values())
+
+        if i <= required_count:
+            for field_name, value in values.items():
+                if is_blank(value):
+                    errors.append(f"Member {i}: {field_name} is required.")
+        elif selected_team_size in {2, 3, 4} and populated:
+            errors.append(
+                f"Member {i}: leave this row blank because the selected team size "
+                f"is {selected_team_size}."
+            )
+
+    return errors
+
+
 def update_issue_labels(repo_full_name, issue_number, token, add_labels, remove_labels):
     if add_labels:
         api_request("POST", f"/repos/{repo_full_name}/issues/{issue_number}/labels", token, {"labels": add_labels})
@@ -182,38 +214,23 @@ def main():
         checks["Selected Team Size"] = f"✅ {selected_team_size} member(s)"
 
     members = parse_members(form)
+    errors.extend(validate_member_rows(form, selected_team_size))
 
-    if not members:
-        errors.append("At least Member 1 (Project Lead) must be filled in with Student No, Full Name, and GitHub Username.")
-    elif len(members) < MIN_MEMBERS:
-        errors.append("A project group must have at least 2 members.")
-    elif len(members) > MAX_MEMBERS:
-        errors.append(f"Too many team members ({len(members)}). Maximum is {MAX_MEMBERS}.")
+    # Validate usernames for every populated row. Structural completeness is
+    # checked above, so this loop only performs username format/existence checks.
+    for member in members:
+        github = member["github"]
+        if github and not GITHUB_USER_REGEX.match(github):
+            errors.append(f"Member {member['index']}: Invalid GitHub username `@{github}`.")
+        elif github:
+            status, _ = api_request("GET", f"/users/{github}", token)
+            if status == 404:
+                errors.append(
+                    f"Member {member['index']}: GitHub user `@{github}` does not exist."
+                )
 
-    if selected_team_size is not None and len(members) != selected_team_size:
-        errors.append(
-            f"You selected {selected_team_size} team members but filled in {len(members)} member row(s). "
-            "Please make the selection and completed rows match."
-        )
-
-    if members and len(members) <= MAX_MEMBERS:
-        for m in members:
-            i = m["index"]
-            if not m["student_no"]:
-                errors.append(f"Member {i}: Student No is required.")
-            if not m["name"]:
-                errors.append(f"Member {i}: Full Name is required.")
-            if not m["github"]:
-                errors.append(f"Member {i}: GitHub Username is required.")
-            elif not GITHUB_USER_REGEX.match(m["github"]):
-                errors.append(f"Member {i}: Invalid GitHub username `@{m['github']}`.")
-            else:
-                status, _ = api_request("GET", f"/users/{m['github']}", token)
-                if status == 404:
-                    errors.append(f"Member {i}: GitHub user `@{m['github']}` does not exist.")
-
-        if not errors:
-            checks["Team Members"] = f"✅ {len(members)} member(s) verified"
+    if not errors:
+        checks["Team Members"] = f"✅ {len(members)} member(s) verified"
 
     # 6. Expected repo name preview
     if module_prefix and academic_year_code and not is_blank(raw_short_title) and SHORT_TITLE_REGEX.match(raw_short_title):
